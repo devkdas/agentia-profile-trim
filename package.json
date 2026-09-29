@@ -1,0 +1,40 @@
+{
+  "name": "agentia-profile-trim",
+  "version": "0.1.0",
+  "description": "Noise free Profile diffs with offline XML cleanup for Agentia CLI",
+  "author": "Kartheek Dasari",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "/dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepack": "npm run build"
+  },
+  "dependencies": {
+    "@oclif/core": "^4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5"
+  },
+  "oclif": {
+    "commands": "./dist/commands",
+    "topics": {
+      "profile": {
+        "description": "Profile XML cleanup for noise free diffs"
+      }
+    }
+  },
+  "keywords": [
+    "agentia",
+    "oclif-plugin",
+    "copado",
+    "profiles"
+  ]
+}
