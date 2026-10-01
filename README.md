@@ -106,6 +106,20 @@ Verified live on a synthetic profile:
 | `--write` | Apply cleanup (default is report only) |
 | `-j, --json` | Machine readable JSON output |
 
+### `agentia profile compare`
+
+| Flag | Description |
+|---|---|
+| `--file-a/--file-b <path>` | Older plus newer local Profile XML files |
+| `-p, --profile <name>` | Profile API name for org mode |
+| `--source/target-credential-id/org-id` | Org credential pairs for org mode |
+| `--pipeline-id` | Pipeline ID scoping gateway calls |
+| `-j, --json` | Machine readable JSON output |
+
+Diffs two profiles grant by grant into added, removed and changed sets
+with before plus after values. File mode is fully offline. Org mode
+fetches both ends read only.
+
 ## Configuration
 
 None. The two cleanup rules are fixed and documented so output stays
