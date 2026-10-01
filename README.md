@@ -112,7 +112,8 @@ Verified live on a synthetic profile:
 |---|---|
 | `--file-a/--file-b <path>` | Older plus newer local Profile XML files |
 | `-p, --profile <name>` | Profile API name for org mode |
-| `--source/target-credential-id/org-id` | Org credential pairs for org mode |
+| `--source-credential-id/--source-org-id` | Source org pair for org mode |
+| `--target-credential-id/--target-org-id` | Target org pair for org mode |
 | `--pipeline-id` | Pipeline ID scoping gateway calls |
 | `-j, --json` | Machine readable JSON output |
 
