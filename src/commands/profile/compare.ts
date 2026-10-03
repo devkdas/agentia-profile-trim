@@ -10,11 +10,33 @@ function runAgentia(args: string[], timeoutMs = 120_000): string {
 interface GrantSet {
   fields: Map<string, string>
   objects: Map<string, string>
+  misc: Map<string, string>
 }
+
+function summarizeBlock(block: string): string {
+  const parts: string[] = []
+  const tagRe = /<([a-zA-Z]+)>([^<>]*)<\/\1>/g
+  let m: RegExpExecArray | null
+  while ((m = tagRe.exec(block)) !== null) {
+    const v = m[2].trim()
+    if (v !== '') parts.push(`${m[1]}=${v}`)
+  }
+  return parts.join(' ').slice(0, 200)
+}
+
+const MISC_BLOCKS: Array<{tag: string; kind: string; keys: string[]}> = [
+  {tag: 'tabVisibilities', kind: 'tab', keys: ['tab']},
+  {tag: 'applicationVisibilities', kind: 'app', keys: ['application']},
+  {tag: 'recordTypeVisibilities', kind: 'recordtype', keys: ['recordType']},
+  {tag: 'userPermissions', kind: 'userperm', keys: ['name']},
+  {tag: 'classAccesses', kind: 'class', keys: ['apexClass']},
+  {tag: 'pageAccesses', kind: 'page', keys: ['apexPage']},
+]
 
 function parseGrants(xml: string): GrantSet {
   const fields = new Map<string, string>()
   const objects = new Map<string, string>()
+  const misc = new Map<string, string>()
   const fieldRe = /<fieldPermissions>([\s\S]*?)<\/fieldPermissions>/g
   let m: RegExpExecArray | null
   while ((m = fieldRe.exec(xml)) !== null) {
@@ -35,7 +57,24 @@ function parseGrants(xml: string): GrantSet {
     const va = /<viewAllRecords>\s*true\s*<\/viewAllRecords>/i.test(block)
     objects.set(object, `allowRead=${ar} modifyAll=${ma} viewAll=${va}`)
   }
-  return {fields, objects}
+  for (const def of MISC_BLOCKS) {
+    const re = new RegExp(`<${def.tag}>([\\s\\S]*?)<\\/${def.tag}>`, 'g')
+    let mm: RegExpExecArray | null
+    while ((mm = re.exec(xml)) !== null) {
+      const block = mm[1]
+      let target = ''
+      for (const key of def.keys) {
+        const hit = new RegExp(`<${key}>([\\s\\S]*?)<\\/${key}>`).exec(block)?.[1]?.trim()
+        if (hit) {
+          target = hit
+          break
+        }
+      }
+      if (target === '') continue
+      misc.set(`${def.kind}:${target}`, summarizeBlock(block))
+    }
+  }
+  return {fields, objects, misc}
 }
 
 function extractContent(parsed: any): string | null {
@@ -152,9 +191,12 @@ export default class ProfileCompare extends Command {
     const changedFields = [...b.fields.keys()].filter((k) => a.fields.has(k) && a.fields.get(k) !== b.fields.get(k))
     const addedObjects = [...b.objects.keys()].filter((k) => !a.objects.has(k))
     const removedObjects = [...a.objects.keys()].filter((k) => !b.objects.has(k))
+    const addedMisc = [...b.misc.keys()].filter((k) => !a.misc.has(k))
+    const removedMisc = [...a.misc.keys()].filter((k) => !b.misc.has(k))
+    const changedMisc = [...b.misc.keys()].filter((k) => a.misc.has(k) && a.misc.get(k) !== b.misc.get(k))
 
     const payload = {
-      status: addedFields.length + removedFields.length + changedFields.length + addedObjects.length + removedObjects.length === 0 ? 'identical' : 'differed',
+      status: addedFields.length + removedFields.length + changedFields.length + addedObjects.length + removedObjects.length + addedMisc.length + removedMisc.length + changedMisc.length === 0 ? 'identical' : 'differed',
       from: labelA,
       to: labelB,
       addedFields,
@@ -162,13 +204,16 @@ export default class ProfileCompare extends Command {
       changedFields: changedFields.map((k) => ({field: k, before: a.fields.get(k), after: b.fields.get(k)})),
       addedObjects,
       removedObjects,
+      addedMisc,
+      removedMisc,
+      changedMisc: changedMisc.map((k) => ({item: k, before: a.misc.get(k), after: b.misc.get(k)})),
     }
     if (asJson) {
       this.log(JSON.stringify(payload, null, 2))
     } else if (payload.status === 'identical') {
       this.log(`Identical: ${labelA} matches ${labelB}. Safe to proceed.`)
     } else {
-      this.log(`Differed: +${addedFields.length} fields, -${removedFields.length} fields, ~${changedFields.length} changed, +${addedObjects.length} -${removedObjects.length} objects.`)
+      this.log(`Differed: +${addedFields.length} fields, -${removedFields.length} fields, ~${changedFields.length} changed, +${addedObjects.length} -${removedObjects.length} objects, +${addedMisc.length} -${removedMisc.length} ~${changedMisc.length} other.`)
       for (const c of payload.changedFields.slice(0, 10)) this.log(`  ~ ${c.field}: ${c.before} to ${c.after}`)
     }
   }
